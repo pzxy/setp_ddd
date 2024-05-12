@@ -1,0 +1,227 @@
+@startuml
+!include lib_eventstorming.puml
+
+DomainEvent("CheckedIn") [
+    车辆已进场
+    --
+    车牌号
+]
+
+DomainEvent("CheckedOut") [
+    车辆已出场
+    --
+    车牌号
+]
+
+DomainEvent("ParkingPaid") [
+    停车已付费
+    --
+    车牌号
+    金额
+    支付时间
+]
+
+DomainEvent("CheckInFailed") [
+    入场已失败
+    --
+    车牌号
+]
+
+DomainEvent("CheckOutFailed") [
+    出场已失败
+    --
+    车牌号
+]
+
+DomainEvent("CarAddedToBlackList") [
+    车辆已加入黑名单
+    --
+    车牌号
+]
+
+DomainEvent("CarRemovedFromBlackList") [
+    车辆已从黑名单移除
+    --
+    车牌号
+]
+
+Command("AddCarToBlackList") [
+    添加车辆到黑名单
+    --
+    车牌号
+    --
+    1.不要重复添加
+]
+
+Command("RemoveCarFromBlackList") [
+    从黑名单移除车辆
+    --
+    车牌号
+    --
+    1.车辆必须在黑名单内才能移除
+]
+
+
+
+Command("CheckIn") [
+    车辆入场
+    --
+    车牌号
+    --
+    1.车辆当前必须不在场才能入场，否则出错，发布入场失败事件
+    2.入场成功，发布车辆已入场事件
+]
+
+Command("CheckOut") [
+    车辆出场
+    --
+    车牌号
+    --
+    1.车辆当前必须在场才能出场，否则出错，发布出场失败事件
+    2.当前必须费用已结清，或者在结清后的15分钟内，否则返回不允许出场
+    3.成功出场后，发布出场成功事件
+]
+
+Command("CalculateCurrentFee") [
+    计算当前费用
+    --
+    车牌号
+    --
+    1.车辆如果不在场，返回车辆不在场
+    2.按照业务算法计算费用
+]
+
+Command("PayParking") [
+    付费
+    --
+    车牌号
+    费用
+    付费时间
+    --
+    1.车辆必须在场，且未结清，否则操作失败
+    2.执行成功，则发布停车已付费事件
+]
+
+
+Aggregate("CarParking") [
+    停车
+    --
+    id: 车牌号
+    --
+    入场时间
+    累计付费金额
+    最后付款时间
+
+]
+
+CheckIn -down-> CarParking
+CheckOut -down-> CarParking
+PayParking -down-> CarParking
+CalculateCurrentFee -down-> CarParking
+
+CarParking -down-> CheckedIn
+CarParking -down-> CheckInFailed
+CarParking -down-> CheckedOut
+CarParking -down-> CheckOutFailed
+CarParking -down-> ParkingPaid
+
+ReadModel("ParkingRecord") [
+    停车记录
+    --
+    id: 自增序列
+    --
+    车牌号
+    入场时间
+    出场时间
+    支付时间
+    支付费用
+]
+
+ReadModel("InParkCount") [
+    在场数量
+    --
+    数量
+]
+
+ReadModel("DailyAvenue") [
+    每日收入
+    --
+    id: 日期
+    --
+    总收入
+]
+
+CheckedIn -down-> ParkingRecord
+CheckedOut -down-> ParkingRecord
+ParkingPaid -down-> ParkingRecord
+
+CheckedIn -down-> InParkCount
+CheckedOut -down-> InParkCount
+
+ParkingPaid -down-> DailyAvenue
+
+Service("AlarmService") [
+    报警
+    --
+    车牌号
+    报警信息
+]
+
+Policy("AlarmPolicy") [
+    报警策略
+    --
+    入场或出场失败时要报警
+]
+
+CheckInFailed -down-> AlarmPolicy
+CheckOutFailed -down-> AlarmPolicy
+
+AlarmPolicy -down-> AlarmService
+
+Person("Gate","闸机")
+Gate -down-> CheckOut
+
+Person("CarOwner", "车主")
+CarOwner -down-> CalculateCurrentFee
+
+Person("PaySystem", "支付系统")
+PaySystem -down-> PayParking
+
+Person("Admin", "停车场管理员")
+Admin -up-> ParkingRecord
+Admin -up-> InParkCount
+Admin -up-> DailyAvenue
+
+Aggregate("CarBlackList")[
+    车辆黑名单
+    --
+    id: 车牌号
+    --
+    是否在黑名单
+]
+
+AddCarToBlackList -down-> CarBlackList
+RemoveCarFromBlackList -down-> CarBlackList
+CarBlackList -down-> CarAddedToBlackList
+CarBlackList -down-> CarRemovedFromBlackList
+
+
+Service("CheckInService") [
+    车辆入场服务
+    --
+    1.如果车牌号在黑名单中，则返回禁止入场
+]
+
+FacadeCommand("CarCheckIn") [
+    车辆入场
+    --
+    车牌号
+]
+
+CarCheckIn -down-> CheckInService
+CheckInService -down-> CheckIn
+CheckInService -down-> CarBlackList
+Gate -down-> CarCheckIn
+
+
+@enduml
