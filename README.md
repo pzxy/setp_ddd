@@ -1,7 +1,5 @@
 # step_ddd
-
-# 源项目地址
-https://github.com/ByteBlizzard/sample-ddd-parking/tree/domain
+这是一个采用DDD思想进行需求分析，基于CQRS架构的实现的模版项目。
 
 # 需求
 ```text
@@ -14,5 +12,3 @@ https://github.com/ByteBlizzard/sample-ddd-parking/tree/domain
 7. 管理员要查看在场车辆总数,每日营业额
 8. 计费规则是每小时1块，不足一小时当成1小时
 ```
-# 需求分析
-![img.png](img.png)
